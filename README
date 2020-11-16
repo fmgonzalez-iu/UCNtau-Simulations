@@ -1,0 +1,73 @@
+How To Run Trajectory Simulations:
+
+By Frank Gonzalez
+------------------------------------------------------------------------
+
+1) Set up the appropriate BigRed3 environment. 
+	Here I'm using the GNU programming environment (in particular for the
+	gsl library). Modify .modules by adding:
+	
+	module unload PrgEnv-intel
+	module load PrgEnf-gnu
+	module load gsl/2.6
+	
+2) Also load ROOT for compiling. I mainly use ROOT for generating histograms
+	and honestly do a lot of the analysis on my own personal computer,
+	but if you want to parallelize it this is good practice. I'm on the 
+	Coherent collaboration ROOT install, but there's probably also a UCN
+	install somewhere (you can change this path). Add to .bashrc:
+	
+	source /N/u/coherent/BigRed3/share/gnu/root-6.21.01_build/bin/thisroot.sh
+	
+3) Now you're ready to set up your setup.h file (in the ./general/ folder).
+	First go with your functions (these are compiler flags):
+	TRACKGENERATOR: What spectrum do you want to use? (There should be just
+		one function here that does everything w/ random generation).
+		I expect you can load data from PENTRACK pretty easily if you can 
+		get a 6D phasespace vector for each run and load that with this 
+		functions.
+	TRACKER: What do you want your tracking program to do? This is where 
+		you define the "main meat" simulating program. The most general
+		ones are "fixedEffDaggerHitTime_reinsert" and "noAbsCleanTrack_multidata"
+		depending on if you want to do fixed (preset spectrum) or noabs 
+		(save the first 50 hits on a surface). I don't have a multidata
+		fixedEff data function yet, I'll probably write one up when I have
+		time.
+	WRITER: What are you writing out? This should be directly linked to 
+		whatever you've set the TRACKER function as
+	TRACKANDPRINT: This is a bool (0 or 1). Turn this on to just save 
+		every point (i.e. plot out trajectories). This'll create terabytes 
+		of data so be careful with running it for too many UCN. 
+
+4) Set up the spectrum and geometry.
+	These are also in the setup.h folder. It should be fairly straightforwards
+	to figure out what each of these represent. 
+	There's also XFNAME,YFNAME, and ZFNAME. These are the heating spectrum
+	data. At one point you had to set these paths even if you didn't really 
+	want to run with heating, but I think I got rid of that segfault.
+
+5) Now you should be able to run things!
+	We're using Slurm as a multithreading program. I've put a debug script
+	in the ./general/ folder as a template, but you'll have to change the
+	paths. For non-debug you need to remove the debug flag and scale to
+	as many trajectories as you want. Then, run:
+	
+	sbatch trapSimsTest.slurm
+
+6) If things went correctly, you should have generated N files (one for each
+	node) as well as a generic output file. I usually will do something :
+	
+	cat track_print_test.bin{0..47} > track_print_test_tot.bin
+	
+	To get one file with all the data. I think you could be clever and 
+	parallelize this, though.
+	
+7) Now you can do analysis with some of this! You'll sorta have to do your
+	own analysis subroutines. For fitting to a histogram, you want to
+	create a vector of like "std::vector<weightedBin> hist = createHistQuantMult(std::vector<noAbsResult> events)"
+	or something like that. 
+	In the stitcher.cpp file there are some fixed_result_hist->ROOT functions 
+	that can turn a 1D fixed result into a root histogram. You'll have
+	to modify that to pull out different histograms. I've set up a test
+	case where at the end of the track_and_print function it'll save the 
+	position (so after like 60 seconds). As set up, this should histogram that.
